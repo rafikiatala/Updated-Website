@@ -1,312 +1,137 @@
 "use client"
 
 import type React from "react"
+import { useLanguage, useTranslation } from "@/lib/language-context"
+import { useAuth } from "@/lib/auth-context"
+import { LoginScreen } from "@/components/login-screen"
+import { LanguageSelectionScreen } from "@/components/language-selection-screen"
+import { LanguageSelector } from "@/components/language-selector"
+import { SearchBar } from "@/components/search-bar"
+import { QuickLinks } from "@/components/quick-links"
+import { FeaturedResources } from "@/components/featured-resources"
+import { Languages, BookOpen, Map, Calendar, MessageCircle } from "lucide-react"
 
-import { useState, useEffect } from "react"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { VoicePlaybackButton } from "@/components/voice-playback-button"
-import { Languages, Search, BookOpen, Loader2 } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+export default function Home() {
+  const { isAuthenticated } = useAuth()
+  const { hasSelectedLanguage } = useLanguage()
+  const t = useTranslation()
 
-type TranslationEntry = {
-  translations: Record<string, string>
-  category: string
-  note?: string
-  examples?: string[]
-}
-
-export default function TranslatePage() {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedLanguage, setSelectedLanguage] = useState("fr")
-  const [searchResults, setSearchResults] = useState<string[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [translationDictionary, setTranslationDictionary] = useState<Record<string, TranslationEntry>>({})
-  const { toast } = useToast()
-
-  const languages = [
-    { code: "fr", name: "French", nativeName: "Français" },
-    { code: "ar", name: "Arabic", nativeName: "العربية" },
-    { code: "sw", name: "Swahili", nativeName: "Kiswahili" },
-    { code: "am", name: "Amharic", nativeName: "አማርኛ" },
-    { code: "pt", name: "Portuguese", nativeName: "Português" },
-  ]
-
-  useEffect(() => {
-    const fetchTranslations = async () => {
-      try {
-        setIsLoading(true)
-        console.log("[v0] Fetching translations from Google Sheets...")
-
-        // Convert Google Sheets URL to CSV export URL
-        const spreadsheetId = "1SiHU-B9WsiXvkpMJMnma_pSiNSFBrBz5k_kJF2HbvKQ"
-        const csvUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv`
-
-        const response = await fetch(csvUrl)
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch spreadsheet data")
-        }
-
-        const csvText = await response.text()
-        console.log("[v0] CSV data fetched successfully")
-
-        // Parse CSV
-        const lines = csvText.split("\n")
-        const dictionary: Record<string, TranslationEntry> = {}
-
-        // Skip first line (header) and process data
-        for (let i = 1; i < lines.length; i++) {
-          const line = lines[i].trim()
-          if (!line) continue
-
-          // Parse CSV line (handling quoted values)
-          const columns = parseCSVLine(line)
-
-          if (columns.length >= 7) {
-            const englishTerm = columns[0].trim().toLowerCase()
-            const note = columns[1].trim()
-            const french = columns[2].trim()
-            const arabic = columns[3].trim()
-            const swahili = columns[4].trim()
-            const amharic = columns[5].trim()
-            const portuguese = columns[6].trim()
-
-            if (englishTerm) {
-              dictionary[englishTerm] = {
-                translations: {
-                  fr: french,
-                  ar: arabic,
-                  sw: swahili,
-                  am: amharic,
-                  pt: portuguese,
-                },
-                category: "General", // Default category
-                note: note || undefined,
-              }
-            }
-          }
-        }
-
-        console.log("[v0] Parsed translations:", Object.keys(dictionary).length, "words")
-        setTranslationDictionary(dictionary)
-
-        toast({
-          title: "Translations loaded",
-          description: `Successfully loaded ${Object.keys(dictionary).length} words from the spreadsheet.`,
-        })
-      } catch (error) {
-        console.error("[v0] Error fetching translations:", error)
-        toast({
-          title: "Error loading translations",
-          description: "Failed to load translations from the spreadsheet. Please try again later.",
-          variant: "destructive",
-        })
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchTranslations()
-  }, [toast])
-
-  const parseCSVLine = (line: string): string[] => {
-    const result: string[] = []
-    let current = ""
-    let inQuotes = false
-
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i]
-
-      if (char === '"') {
-        inQuotes = !inQuotes
-      } else if (char === "," && !inQuotes) {
-        result.push(current)
-        current = ""
-      } else {
-        current += char
-      }
-    }
-
-    result.push(current)
-    return result
+  if (!isAuthenticated) {
+    return <LoginScreen />
   }
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!searchQuery.trim()) return
-
-    const query = searchQuery.toLowerCase()
-    const results = Object.keys(translationDictionary).filter((word) => word.includes(query))
-    setSearchResults(results)
-  }
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-lg font-medium text-foreground">Loading translations...</p>
-          <p className="text-sm text-muted-foreground">Fetching data from spreadsheet</p>
-        </div>
-      </div>
-    )
+  if (!hasSelectedLanguage) {
+    return <LanguageSelectionScreen />
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
-      <div className="mx-auto max-w-5xl px-4 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="mb-4 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground">
-              <Languages className="h-6 w-6" />
+    <div className="min-h-screen">
+      {/* Hero Section */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-primary/10 via-accent/5 to-secondary/10">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(120,119,198,0.1),transparent_50%),radial-gradient(circle_at_70%_80%,rgba(74,222,128,0.1),transparent_50%)]" />
+
+        <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
+          <div className="text-center">
+            <h1 className="text-5xl font-bold tracking-tight text-foreground sm:text-6xl lg:text-7xl">
+              <span className="block text-balance">RAFIKI</span>
+              <span className="mt-2 block text-3xl text-muted-foreground sm:text-4xl lg:text-5xl">
+                {t("heroTitle")}
+              </span>
+            </h1>
+
+            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl text-balance">
+              {t("heroSubtitle")}
+            </p>
+
+            {/* Language Selector */}
+            <div className="mt-10">
+              <LanguageSelector />
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">Translation Tool</h1>
-              <p className="text-sm text-muted-foreground">Search and listen to word translations</p>
+
+            {/* Search Bar */}
+            <div className="mt-8">
+              <SearchBar />
             </div>
           </div>
-
-          {/* Language Selector */}
-          <div className="mb-4 flex flex-wrap gap-2">
-            {languages.map((lang) => (
-              <Button
-                key={lang.code}
-                variant={selectedLanguage === lang.code ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedLanguage(lang.code)}
-              >
-                {lang.nativeName}
-              </Button>
-            ))}
-          </div>
-
-          {/* Search */}
-          <form onSubmit={handleSearch} className="relative">
-            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Search for any word in English..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-12 pl-12 pr-4 text-base"
-            />
-          </form>
         </div>
+      </section>
 
-        {/* Search Results */}
-        {searchResults.length > 0 ? (
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-foreground">Search Results</h2>
-            {searchResults.map((word) => {
-              const entry = translationDictionary[word]
-              return (
-                <Card key={word} className="p-6">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="mb-2 flex items-center gap-3">
-                        <div>
-                          <h3 className="text-xl font-semibold capitalize text-foreground">{word}</h3>
-                          {entry.note && <p className="text-xs text-muted-foreground mt-1">{entry.note}</p>}
-                        </div>
-                        <Badge variant="secondary">{entry.category}</Badge>
-                        <VoicePlaybackButton text={word} language="en" />
-                      </div>
+      {/* Quick Access Cards */}
+      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <QuickAccessCard
+            icon={<MessageCircle className="h-8 w-8" />}
+            title={t("chatAssistant")}
+            description={t("chatAssistantDesc")}
+            href="/chat"
+          />
+          <QuickAccessCard
+            icon={<Languages className="h-8 w-8" />}
+            title={t("translate")}
+            description={t("commonPhrasesDesc")}
+            href="/translate"
+          />
+          <QuickAccessCard
+            icon={<BookOpen className="h-8 w-8" />}
+            title={t("studentHandbook")}
+            description={t("studentHandbookDesc")}
+            href="/handbook"
+          />
+          <QuickAccessCard
+            icon={<Map className="h-8 w-8" />}
+            title={t("campusMap")}
+            description={t("campusMapDesc")}
+            href="/map"
+          />
+          <QuickAccessCard
+            icon={<Calendar className="h-8 w-8" />}
+            title={t("upcomingEvents")}
+            description={t("upcomingEventsDesc")}
+            href="/events"
+          />
+        </div>
+      </section>
 
-                      <div className="mb-4 rounded-lg bg-muted/50 p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm text-muted-foreground">
-                              {languages.find((l) => l.code === selectedLanguage)?.nativeName}
-                            </p>
-                            <p className="text-2xl font-semibold text-foreground">
-                              {entry.translations[selectedLanguage]}
-                            </p>
-                          </div>
-                          <VoicePlaybackButton
-                            text={entry.translations[selectedLanguage]}
-                            language={selectedLanguage}
-                            size="default"
-                          />
-                        </div>
-                      </div>
+      {/* Quick Links */}
+      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <QuickLinks />
+      </section>
 
-                      {entry.examples && (
-                        <div>
-                          <p className="mb-2 text-sm font-medium text-muted-foreground">Examples:</p>
-                          <ul className="space-y-1">
-                            {entry.examples.map((example, index) => (
-                              <li key={index} className="flex items-center gap-2 text-sm text-foreground">
-                                <span>•</span>
-                                <span>{example}</span>
-                                <VoicePlaybackButton text={example} language="en" size="sm" />
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-              )
-            })}
-          </div>
-        ) : (
-          /* Popular Words */
-          <div>
-            <h2 className="mb-4 text-lg font-semibold text-foreground">Popular Words</h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {Object.entries(translationDictionary)
-                .slice(0, 6)
-                .map(([word, entry]) => (
-                  <Card key={word} className="p-4 hover:shadow-md transition-shadow">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1">
-                        <div className="mb-2 flex items-center gap-2">
-                          <div>
-                            <h3 className="font-semibold capitalize text-foreground">{word}</h3>
-                            {entry.note && <p className="text-xs text-muted-foreground mt-0.5">{entry.note}</p>}
-                          </div>
-                          <VoicePlaybackButton text={word} language="en" size="sm" />
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm text-muted-foreground">{entry.translations[selectedLanguage]}</p>
-                          <VoicePlaybackButton
-                            text={entry.translations[selectedLanguage]}
-                            language={selectedLanguage}
-                            size="sm"
-                          />
-                        </div>
-                      </div>
-                      <Badge variant="outline" className="text-xs">
-                        {entry.category}
-                      </Badge>
-                    </div>
-                  </Card>
-                ))}
-            </div>
-          </div>
-        )}
-
-        {/* Quick Tip */}
-        <Card className="mt-8 p-6">
-          <div className="flex items-start gap-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <BookOpen className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="mb-2 font-semibold text-foreground">Pro Tip</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                Click the speaker icon next to any word to hear how it's pronounced. This helps you learn the correct
-                pronunciation in different languages!
-              </p>
-            </div>
-          </div>
-        </Card>
-      </div>
+      {/* Featured Resources */}
+      <section className="bg-muted/30 py-12">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <FeaturedResources />
+        </div>
+      </section>
     </div>
+  )
+}
+
+function QuickAccessCard({
+  icon,
+  title,
+  description,
+  href,
+}: {
+  icon: React.ReactNode
+  title: string
+  description: string
+  href: string
+}) {
+  return (
+    <a
+      href={href}
+      className="group relative overflow-hidden rounded-xl border bg-card p-6 transition-all hover:shadow-lg hover:border-primary/50"
+    >
+      <div className="flex flex-col gap-4">
+        <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+          {icon}
+        </div>
+        <div>
+          <h3 className="font-semibold text-lg text-card-foreground">{title}</h3>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{description}</p>
+        </div>
+      </div>
+    </a>
   )
 }
