@@ -1,137 +1,143 @@
 "use client"
 
 import type React from "react"
-import { useLanguage, useTranslation } from "@/lib/language-context"
-import { useAuth } from "@/lib/auth-context"
-import { LoginScreen } from "@/components/login-screen"
-import { LanguageSelectionScreen } from "@/components/language-selection-screen"
-import { LanguageSelector } from "@/components/language-selector"
-import { SearchBar } from "@/components/search-bar"
-import { QuickLinks } from "@/components/quick-links"
-import { FeaturedResources } from "@/components/featured-resources"
-import { Languages, BookOpen, Map, Calendar, MessageCircle } from "lucide-react"
 
-export default function Home() {
-  const { isAuthenticated } = useAuth()
-  const { hasSelectedLanguage } = useLanguage()
+import { useChat } from "@ai-sdk/react"
+import { DefaultChatTransport } from "ai"
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { MessageCircle, Send, Loader2, Languages } from "lucide-react"
+import { useState } from "react"
+import { useTranslation } from "@/lib/language-context"
+
+export default function ChatPage() {
+  const [inputValue, setInputValue] = useState("")
   const t = useTranslation()
 
-  if (!isAuthenticated) {
-    return <LoginScreen />
-  }
+  const { messages, sendMessage, status } = useChat({
+    transport: new DefaultChatTransport({ api: "/api/chat" }),
+  })
 
-  if (!hasSelectedLanguage) {
-    return <LanguageSelectionScreen />
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (inputValue.trim() && status !== "in_progress") {
+      sendMessage({ text: inputValue })
+      setInputValue("")
+    }
   }
 
   return (
-    <div className="min-h-screen">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-primary/10 via-accent/5 to-secondary/10">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(120,119,198,0.1),transparent_50%),radial-gradient(circle_at_70%_80%,rgba(74,222,128,0.1),transparent_50%)]" />
-
-        <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
-          <div className="text-center">
-            <h1 className="text-5xl font-bold tracking-tight text-foreground sm:text-6xl lg:text-7xl">
-              <span className="block text-balance">RAFIKI</span>
-              <span className="mt-2 block text-3xl text-muted-foreground sm:text-4xl lg:text-5xl">
-                {t("heroTitle")}
-              </span>
-            </h1>
-
-            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl text-balance">
-              {t("heroSubtitle")}
-            </p>
-
-            {/* Language Selector */}
-            <div className="mt-10">
-              <LanguageSelector />
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
+      <div className="mx-auto max-w-4xl px-4 py-8">
+        {/* Header */}
+        <div className="mb-8 text-center">
+          <div className="mb-4 flex items-center justify-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              <MessageCircle className="h-6 w-6" />
             </div>
-
-            {/* Search Bar */}
-            <div className="mt-8">
-              <SearchBar />
-            </div>
+            <h1 className="text-3xl font-bold text-foreground">{t("chatTitle")}</h1>
           </div>
+          <p className="text-muted-foreground">{t("chatSubtitle")}</p>
         </div>
-      </section>
 
-      {/* Quick Access Cards */}
-      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          <QuickAccessCard
-            icon={<MessageCircle className="h-8 w-8" />}
-            title={t("chatAssistant")}
-            description={t("chatAssistantDesc")}
-            href="/chat"
-          />
-          <QuickAccessCard
-            icon={<Languages className="h-8 w-8" />}
-            title={t("translate")}
-            description={t("commonPhrasesDesc")}
-            href="/translate"
-          />
-          <QuickAccessCard
-            icon={<BookOpen className="h-8 w-8" />}
-            title={t("studentHandbook")}
-            description={t("studentHandbookDesc")}
-            href="/handbook"
-          />
-          <QuickAccessCard
-            icon={<Map className="h-8 w-8" />}
-            title={t("campusMap")}
-            description={t("campusMapDesc")}
-            href="/map"
-          />
-          <QuickAccessCard
-            icon={<Calendar className="h-8 w-8" />}
-            title={t("upcomingEvents")}
-            description={t("upcomingEventsDesc")}
-            href="/events"
-          />
-        </div>
-      </section>
+        {/* Chat Container */}
+        <Card className="mb-4 flex min-h-[500px] flex-col">
+          {/* Messages */}
+          <div className="flex-1 space-y-4 overflow-y-auto p-6">
+            {messages.length === 0 ? (
+              <div className="flex h-full flex-col items-center justify-center gap-6 text-center">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Languages className="h-10 w-10" />
+                </div>
+                <div>
+                  <h3 className="mb-2 text-lg font-semibold text-foreground">{t("welcomeTitle")}</h3>
+                  <p className="text-sm text-muted-foreground">{t("chatSubtitle")}</p>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setInputValue(t("translateWord") + " English")
+                    }}
+                  >
+                    {t("translateWord")}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setInputValue(t("findDining"))
+                    }}
+                  >
+                    {t("findDining")}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setInputValue(t("tellAboutTAALU"))
+                    }}
+                  >
+                    {t("tellAboutTAALU")}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setInputValue(t("explainUMUZI"))
+                    }}
+                  >
+                    {t("explainUMUZI")}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              messages.map((message) => (
+                <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+                  <div
+                    className={`max-w-[80%] rounded-lg px-4 py-3 ${
+                      message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+                    }`}
+                  >
+                    {message.parts.map((part, index) => {
+                      if (part.type === "text") {
+                        return (
+                          <p key={index} className="whitespace-pre-wrap leading-relaxed">
+                            {part.text}
+                          </p>
+                        )
+                      }
+                      return null
+                    })}
+                  </div>
+                </div>
+              ))
+            )}
+            {status === "in_progress" && (
+              <div className="flex justify-start">
+                <div className="flex items-center gap-2 rounded-lg bg-muted px-4 py-3 text-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-sm">{t("loading")}</span>
+                </div>
+              </div>
+            )}
+          </div>
 
-      {/* Quick Links */}
-      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <QuickLinks />
-      </section>
-
-      {/* Featured Resources */}
-      <section className="bg-muted/30 py-12">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <FeaturedResources />
-        </div>
-      </section>
-    </div>
-  )
-}
-
-function QuickAccessCard({
-  icon,
-  title,
-  description,
-  href,
-}: {
-  icon: React.ReactNode
-  title: string
-  description: string
-  href: string
-}) {
-  return (
-    <a
-      href={href}
-      className="group relative overflow-hidden rounded-xl border bg-card p-6 transition-all hover:shadow-lg hover:border-primary/50"
-    >
-      <div className="flex flex-col gap-4">
-        <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-          {icon}
-        </div>
-        <div>
-          <h3 className="font-semibold text-lg text-card-foreground">{title}</h3>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{description}</p>
-        </div>
+          {/* Input Form */}
+          <div className="border-t p-4">
+            <form onSubmit={handleSubmit} className="flex gap-2">
+              <Input
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder={t("typeMessage")}
+                disabled={status === "in_progress"}
+                className="flex-1"
+              />
+              <Button type="submit" disabled={status === "in_progress" || !inputValue.trim()}>
+                <Send className="h-4 w-4" />
+              </Button>
+            </form>
+          </div>
+        </Card>
       </div>
-    </a>
+    </div>
   )
 }
